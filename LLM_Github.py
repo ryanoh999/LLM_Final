@@ -1,12 +1,7 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[10]:
-
-
 from datetime import datetime, timedelta
 import requests
 import pandas as pd
+import os
 
 def fetch_news_by_date(api_key, company):
     # Define the current time in PST
@@ -91,16 +86,21 @@ companies = {
     'Tesla': 'TSLA'
 }
 
-# Your Alpha Vantage API key
-alpha_vantage_api_key = 'C5094DG9ITHLDY0R'
-news_api_key = 'f28b3f1b39c84a34b8ac8e566dee7c2a'
-
 # Fetch news for all companies and concatenate the results
+news_api_key = os.getenv('NEWS_API_KEY')
+alpha_vantage_api_key = os.getenv('ALPHA_VANTAGE_API_KEY')
+
 all_responses = pd.concat([fetch_news_by_date(news_api_key, company) for company in companies], ignore_index=True)
 
-# Clean the data
-all_responses = all_responses.dropna(subset=['description'])
-all_responses = all_responses[all_responses['description'] != '[Removed]']
+# Debugging: Print columns before dropping NaN descriptions
+print("Columns in all_responses before dropna:", all_responses.columns)
+
+# Check if 'description' column exists before dropping NaN values
+if 'description' in all_responses.columns:
+    all_responses = all_responses.dropna(subset=['description'])
+    all_responses = all_responses[all_responses['description'] != '[Removed]']
+else:
+    print("Warning: 'description' column not found in the DataFrame")
 
 # Fetch trends for all companies
 trends = {}
@@ -121,4 +121,3 @@ trimmed_responses = all_responses[['Company', 'title', 'description', 'Date', 'U
 
 # Save to CSV
 trimmed_responses.to_csv('articles.csv', index=False)
-
