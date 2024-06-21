@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[10]:
 
 
 from datetime import datetime, timedelta
@@ -41,18 +41,84 @@ def fetch_news_by_date(api_key, company):
     df = pd.DataFrame(articles)
     return df
 
-# List of companies
-companies = ['Apple', 'Amazon', 'Disney', 'Google', 'Netflix', 'Nvidia', 'Tesla']
+def get_stock_trend(api_key, symbol):
+    # Define the API endpoint and parameters
+    url = 'https://www.alphavantage.co/query'
+    params = {
+        'function': 'TIME_SERIES_INTRADAY',
+        'symbol': symbol,
+        'interval': '60min',
+        'apikey': api_key
+    }
+    
+    # Make the API request
+    response = requests.get(url, params=params)
+    data = response.json()
+    
+    # Extract time series data
+    time_series = data.get('Time Series (60min)', {})
+    
+    # Get the latest and previous day's closing prices
+    if not time_series:
+        raise ValueError(f"Could not retrieve data for {symbol}. Please check your API key and network connection.")
+    
+    # Find the latest and previous day's data
+    today_date = datetime.now().strftime('%Y-%m-%d')
+    closing_prices = []
+    for timestamp, values in time_series.items():
+        date = timestamp.split()[0]
+        if date == today_date:
+            closing_prices.append(float(values['4. close']))
+    
+    if len(closing_prices) < 2:
+        raise ValueError(f"Not enough data for today's trading to determine the trend for {symbol}.")
+    
+    # Determine the trend
+    latest_close = closing_prices[0]
+    previous_close = closing_prices[-1]
+    
+    trend = "Up" if latest_close > previous_close else "Down"
+    return trend
 
-api_key = 'f28b3f1b39c84a34b8ac8e566dee7c2a'
+# List of companies and their stock symbols
+companies = {
+    'Apple': 'AAPL',
+    'Amazon': 'AMZN',
+    'Disney': 'DIS',
+    'Google': 'GOOGL',
+    'Netflix': 'NFLX',
+    'Nvidia': 'NVDA',
+    'Tesla': 'TSLA'
+}
+
+# Your Alpha Vantage API key
+alpha_vantage_api_key = 'C5094DG9ITHLDY0R'
+news_api_key = 'f28b3f1b39c84a34b8ac8e566dee7c2a'
 
 # Fetch news for all companies and concatenate the results
-all_responses = pd.concat([fetch_news_by_date(api_key, company) for company in companies], ignore_index=True)
+all_responses = pd.concat([fetch_news_by_date(news_api_key, company) for company in companies], ignore_index=True)
 
 # Clean the data
 all_responses = all_responses.dropna(subset=['description'])
 all_responses = all_responses[all_responses['description'] != '[Removed]']
 
+# Fetch trends for all companies
+trends = {}
+for company, symbol in companies.items():
+    try:
+        trend = get_stock_trend(alpha_vantage_api_key, symbol)
+        trends[company] = trend
+    except ValueError as e:
+        print(e)
+        trends[company] = None
+
+# Add "Up/Down" column to all_responses
+all_responses['Up/Down'] = all_responses['company'].map(trends)
+
+# Trim all_responses to the specified columns and order
+all_responses = all_responses.rename(columns={'company': 'Company', 'fetch_date': 'Date'})
+trimmed_responses = all_responses[['Company', 'title', 'description', 'Date', 'Up/Down']]
+
 # Save to CSV
-all_responses.to_csv('stockmarket_daily.csv', index=False)
+trimmed_responses.to_csv('articles.csv', index=False)
 
