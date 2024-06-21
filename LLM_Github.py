@@ -44,8 +44,7 @@ def fetch_news_by_date(api_key, company):
 # List of companies
 companies = ['Apple', 'Amazon', 'Disney', 'Google', 'Netflix', 'Nvidia', 'Tesla']
 
-# Example API key usage
-api_key = 'YOUR_NEWS_API_KEY'
+api_key = 'f28b3f1b39c84a34b8ac8e566dee7c2a'
 
 # Fetch news for all companies and concatenate the results
 all_responses = pd.concat([fetch_news_by_date(api_key, company) for company in companies], ignore_index=True)
